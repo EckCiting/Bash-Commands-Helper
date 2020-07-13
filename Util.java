@@ -22,10 +22,13 @@ public class Util {
             channel = (ChannelExec) session.openChannel("exec");
             if(sudo)
                 channel.setCommand("sudo -S -p '' "+command);
+            else
+                channel.setCommand(command);
             InputStream input = channel.getInputStream();
             OutputStream out = channel.getOutputStream();
             channel.connect(Main.CONNECT_TIMEOUT);
             if(sudo) {
+                // Did not consider the case if the password is empty
                 out.write((Main.remote.getPassword() + "\n").getBytes());
                 out.flush();
             }
@@ -61,19 +64,35 @@ public class Util {
         }
         return resultLines;
     }
-    // selfInput is not tested
-    public static void selfInput() throws JSchException {
-            Scanner scanner = new Scanner(System.in);
-            String kbinput ="";
-            boolean sudo = false;
-            while(!kbinput.equals("break")){
-                if(scanner.hasNextLine()){
-                    kbinput = scanner.nextLine();
+
+    public static void remoteInteractShell(Session session) throws JSchException {
+        try {
+            Channel channel = session.openChannel("shell");
+            channel.setInputStream(System.in);
+            channel.setInputStream(new FilterInputStream(System.in) {
+                public int read(byte[] b, int off, int len) throws IOException {
+                    return in.read(b, off, (len > 1024 ? 1024 : len));
                 }
-                if(kbinput.contains("sudo"))
-                    sudo = true;
-                System.out.println(remoteExecute(sudo,Main.session,kbinput));
-            }
-            scanner.close();
+            });
+            channel.setOutputStream(System.out);
+            channel.connect(3000);
+        } catch (Exception e){
+            System.out.println(e);
         }
+    }
+
+    public static void remoteExecuteShell(Session session) throws JSchException {
+        try {
+            Channel channel = session.openChannel("shell");
+            String cmd = "xxx"; // your own command
+            cmd+=" \n";
+            InputStream in = new ByteArrayInputStream(cmd.getBytes("UTF-8"));
+            channel.setInputStream(in);
+
+            channel.setOutputStream(System.out);
+            channel.connect(3000);
+        } catch (Exception e){
+            System.out.println(e);
+        }
+    }
 }
